@@ -293,6 +293,12 @@ func RunHandler(cmd *cobra.Command, args []string) error {
 		Options:  map[string]any{},
 	}
 
+	useMMap, err := cmd.Flags().GetBool("useMMap")
+	if err != nil {
+		return err
+	}
+	opts.Options["use_mmap"] = useMMap
+
 	threads, err := cmd.Flags().GetInt("threads")
 	if err != nil {
 		return err
@@ -1357,6 +1363,7 @@ func NewCLI() *cobra.Command {
 	runCmd.Flags().Bool("insecure", false, "Use an insecure registry")
 	runCmd.Flags().Bool("nowordwrap", false, "Don't wrap words to the next line automatically")
 	runCmd.Flags().String("format", "", "Response format (e.g. json)")
+	runCmd.Flags().Bool("useMMap", false, "Use MMap")
 	runCmd.Flags().Int("threads", 0, "Number of threads to use (0 for default)")
 
 	stopCmd := &cobra.Command{
