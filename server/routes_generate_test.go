@@ -77,12 +77,13 @@ func TestGenerateChat(t *testing.T) {
 			getGpuFn:      discover.GetGPUInfo,
 			getCpuFn:      discover.GetCPUInfo,
 			reschedDelay:  250 * time.Millisecond,
-			loadFn: func(req *LlmRequest, _ *ggml.GGML, _ discover.GpuInfoList, _ int) {
+			loadFn: func(req *LlmRequest, _ *ggml.GGML, _ discover.GpuInfoList, _ bool) bool {
 				// add small delay to simulate loading
 				time.Sleep(time.Millisecond)
 				req.successCh <- &runnerRef{
 					llama: &mock,
 				}
+				return false
 			},
 		},
 	}
@@ -139,6 +140,25 @@ func TestGenerateChat(t *testing.T) {
 		}
 
 		if diff := cmp.Diff(w.Body.String(), `{"error":"model is required"}`); diff != "" {
+			t.Errorf("mismatch (-got +want):\n%s", diff)
+		}
+	})
+
+	t.Run("missing thinking capability", func(t *testing.T) {
+		think := true
+		w := createRequest(t, s.ChatHandler, api.ChatRequest{
+			Model: "test",
+			Messages: []api.Message{
+				{Role: "user", Content: "Hello!"},
+			},
+			Think: &api.ThinkValue{Value: think},
+		})
+
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("expected status 400, got %d", w.Code)
+		}
+
+		if diff := cmp.Diff(w.Body.String(), `{"error":"registry.ollama.ai/library/test:latest does not support thinking"}`); diff != "" {
 			t.Errorf("mismatch (-got +want):\n%s", diff)
 		}
 	})
@@ -369,25 +389,15 @@ func TestGenerateChat(t *testing.T) {
 					Name:        "get_weather",
 					Description: "Get the current weather",
 					Parameters: struct {
-						Type       string   `json:"type"`
-						Defs       any      `json:"$defs,omitempty"`
-						Items      any      `json:"items,omitempty"`
-						Required   []string `json:"required"`
-						Properties map[string]struct {
-							Type        api.PropertyType `json:"type"`
-							Items       any              `json:"items,omitempty"`
-							Description string           `json:"description"`
-							Enum        []any            `json:"enum,omitempty"`
-						} `json:"properties"`
+						Type       string                      `json:"type"`
+						Defs       any                         `json:"$defs,omitempty"`
+						Items      any                         `json:"items,omitempty"`
+						Required   []string                    `json:"required"`
+						Properties map[string]api.ToolProperty `json:"properties"`
 					}{
 						Type:     "object",
 						Required: []string{"location"},
-						Properties: map[string]struct {
-							Type        api.PropertyType `json:"type"`
-							Items       any              `json:"items,omitempty"`
-							Description string           `json:"description"`
-							Enum        []any            `json:"enum,omitempty"`
-						}{
+						Properties: map[string]api.ToolProperty{
 							"location": {
 								Type:        api.PropertyType{"string"},
 								Description: "The city and state",
@@ -470,25 +480,15 @@ func TestGenerateChat(t *testing.T) {
 					Name:        "get_weather",
 					Description: "Get the current weather",
 					Parameters: struct {
-						Type       string   `json:"type"`
-						Defs       any      `json:"$defs,omitempty"`
-						Items      any      `json:"items,omitempty"`
-						Required   []string `json:"required"`
-						Properties map[string]struct {
-							Type        api.PropertyType `json:"type"`
-							Items       any              `json:"items,omitempty"`
-							Description string           `json:"description"`
-							Enum        []any            `json:"enum,omitempty"`
-						} `json:"properties"`
+						Type       string                      `json:"type"`
+						Defs       any                         `json:"$defs,omitempty"`
+						Items      any                         `json:"items,omitempty"`
+						Required   []string                    `json:"required"`
+						Properties map[string]api.ToolProperty `json:"properties"`
 					}{
 						Type:     "object",
 						Required: []string{"location"},
-						Properties: map[string]struct {
-							Type        api.PropertyType `json:"type"`
-							Items       any              `json:"items,omitempty"`
-							Description string           `json:"description"`
-							Enum        []any            `json:"enum,omitempty"`
-						}{
+						Properties: map[string]api.ToolProperty{
 							"location": {
 								Type:        api.PropertyType{"string"},
 								Description: "The city and state",
@@ -621,12 +621,13 @@ func TestGenerate(t *testing.T) {
 			getGpuFn:      discover.GetGPUInfo,
 			getCpuFn:      discover.GetCPUInfo,
 			reschedDelay:  250 * time.Millisecond,
-			loadFn: func(req *LlmRequest, _ *ggml.GGML, _ discover.GpuInfoList, _ int) {
+			loadFn: func(req *LlmRequest, _ *ggml.GGML, _ discover.GpuInfoList, _ bool) bool {
 				// add small delay to simulate loading
 				time.Sleep(time.Millisecond)
 				req.successCh <- &runnerRef{
 					llama: &mock,
 				}
+				return false
 			},
 		},
 	}
