@@ -161,6 +161,11 @@ func NewLlamaServer(gpus discover.GpuInfoList, modelPath string, f *ggml.GGML, a
 		}
 	}
 
+	newEstimates := textProcessor != nil && envconfig.NewMemoryEstimates()
+	if newEstimates {
+		slog.Info("enabling new memory estimates")
+	}
+
 	// On linux and windows, over-allocating CPU memory will almost always result in an error
 	// Darwin has fully dynamic swap so has no direct concept of free swap space
 	if runtime.GOOS != "darwin" {
